@@ -1,0 +1,410 @@
+{
+  "name": "AI-Lawyer: Document Analysis (Расширение основного flow)",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "// Получаем текст из Google Script (OCR результат)\nconst scannedText = $json.data || $json.text || '';\nconst chatId = $('получаем данные о файлах').item.json.chatId;\nconst messageIds = $('получаем данные о файлах').item.json.allMessageIds;\n\nif (!scannedText || scannedText.trim().length < 50) {\n  return [{\n    json: {\n      chatId: chatId,\n      error: true,\n      message: '⚠️ Не удалось извлечь текст из документа. Попробуйте загрузить файл получше качеством или в другом формате.'\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    chatId: chatId,\n    documentText: scannedText,\n    messageIds: messageIds,\n    textLength: scannedText.length\n  }\n}];"
+      },
+      "name": "Prepare Document Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2100, 720],
+      "id": "prepare-doc-text"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT * FROM check_user_limit('{{ $json.chatId }}');",
+        "options": {}
+      },
+      "name": "Check User Limits",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [2300, 720],
+      "id": "check-limits",
+      "credentials": {
+        "postgres": {
+          "id": "YPcvcXZdkdmjfpQp",
+          "name": "DOSTYQ"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.can_analyze }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "Has Limit?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2500, 720],
+      "id": "has-limit"
+    },
+    {
+      "parameters": {
+        "jsCode": "const remaining = $json.remaining_analyses || 0;\nconst tier = $json.tier || 'free';\n\nlet message = '';\n\nif (tier === 'free') {\n  message = `❌ *Лимит исчерпан*\\n\\nВы использовали бесплатный анализ за этот месяц.\\n\\n💎 *Доступные пакеты:*\\n• 5 анализов - 2990 ₸\\n• 10 анализов - 4990 ₸\\n• 20 анализов - 7990 ₸\\n\\nДля оплаты отправьте команду /pay`;\n} else {\n  message = `❌ *Лимит исчерпан*\\n\\nУ вас закончились анализы в текущем пакете.\\n\\nДля продолжения работы приобретите дополнительные анализы: /pay`;\n}\n\nreturn [{\n  json: {\n    chatId: $('Prepare Document Text').item.json.chatId,\n    message: message,\n    needsPayment: true\n  }\n}];"
+      },
+      "name": "Limit Exceeded Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2700, 900],
+      "id": "limit-exceeded"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "page-limit",
+              "name": "maxPages",
+              "value": "={{ $json.max_pages }}",
+              "type": "number"
+            },
+            {
+              "id": "text-length",
+              "name": "textLength",
+              "value": "={{ $('Prepare Document Text').item.json.textLength }}",
+              "type": "number"
+            },
+            {
+              "id": "doc-text",
+              "name": "documentText",
+              "value": "={{ $('Prepare Document Text').item.json.documentText }}",
+              "type": "string"
+            },
+            {
+              "id": "chat-id",
+              "name": "chatId",
+              "value": "={{ $('Prepare Document Text').item.json.chatId }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Set Analysis Context",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [2700, 540],
+      "id": "set-context"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Проанализируй следующий текст договора и определи его тип. Верни ТОЛЬКО одно из следующих значений:\n- rental_agreement (договор аренды)\n- service_agreement (договор оказания услуг)\n- nda (соглашение о неразглашении)\n- employment_contract (трудовой договор)\n- purchase_agreement (договор купли-продажи)\n- other (другое)\n\nТекст документа:\n{{ $json.documentText.substring(0, 2000) }}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.1,
+          "maxTokens": 50
+        }
+      },
+      "name": "Detect Document Type",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [2900, 540],
+      "id": "detect-type",
+      "credentials": {
+        "openAiApi": {
+          "id": "Es27wp9w8fZSwAE8",
+          "name": "DOSTYQ QOSTANAY"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "analysis_templates",
+          "mode": "list"
+        },
+        "where": {
+          "values": [
+            {
+              "column": "document_type",
+              "value": "={{ $json.message.trim() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Get Analysis Template",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [3100, 540],
+      "id": "get-template",
+      "credentials": {
+        "postgres": {
+          "id": "YPcvcXZdkdmjfpQp",
+          "name": "DOSTYQ"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "text-embedding-3-small",
+        "options": {}
+      },
+      "name": "Vectorize Query",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1,
+      "position": [3100, 340],
+      "id": "vectorize-query",
+      "credentials": {
+        "openAiApi": {
+          "id": "Es27wp9w8fZSwAE8",
+          "name": "DOSTYQ QOSTANAY"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT * FROM match_legal_documents(\n  '{{ $json.embedding }}'::vector,\n  0.7,\n  10,\n  NULL\n);",
+        "options": {}
+      },
+      "name": "Search Legal Context",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [3300, 340],
+      "id": "search-context",
+      "credentials": {
+        "postgres": {
+          "id": "YPcvcXZdkdmjfpQp",
+          "name": "DOSTYQ"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Собираем релевантный юридический контекст\nconst legalContext = $input.all();\nconst contextText = legalContext\n  .map(item => `[${item.json.category}] ${item.json.title}:\\n${item.json.content}`)\n  .join('\\n\\n---\\n\\n');\n\nreturn [{\n  json: {\n    legalContext: contextText,\n    contextsFound: legalContext.length\n  }\n}];"
+      },
+      "name": "Format Legal Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3500, 340],
+      "id": "format-context"
+    },
+    {
+      "parameters": {
+        "numberInputs": 3
+      },
+      "name": "Merge Analysis Data",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [3700, 440],
+      "id": "merge-analysis"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "={% raw %}{{ $('Get Analysis Template').item.json.system_prompt }}{% endraw %}\n\n**ВАЖНЫЕ ПРАВИЛА:**\n1. Используй предоставленный юридический контекст для оценки законности пунктов\n2. Ссылайся на конкретные статьи законов при выявлении рисков\n3. Будь конкретным - указывай номера пунктов договора\n4. Оценивай риски объективно по шкале 1-5\n5. Обязательно добавь дисклеймер в конце\n\n**ЮРИДИЧЕСКИЙ КОНТЕКСТ:**\n{{ $('Format Legal Context').item.json.legalContext }}\n\n**ТЕКСТ ДОГОВОРА ДЛЯ АНАЛИЗА:**\n{{ $('Set Analysis Context').item.json.documentText }}\n\n**ФОРМАТ ОТВЕТА (строго JSON):**\n{\n  \"document_type\": \"тип документа\",\n  \"overall_risk_score\": 1-5,\n  \"risk_points\": [\n    {\n      \"clause_number\": \"номер пункта\",\n      \"issue\": \"описание проблемы\",\n      \"risk_level\": 1-5,\n      \"legal_reference\": \"ссылка на закон\",\n      \"recommendation\": \"что делать\"\n    }\n  ],\n  \"positive_points\": [\"что хорошо в договоре\"],\n  \"summary\": \"краткое резюме\",\n  \"action_items\": [\"конкретные действия\"]\n}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.3,
+          "maxTokens": 4000,
+          "systemMessage": "Ты опытный юрист-эксперт по договорному праву Республики Казахстан. Твоя задача - помочь клиенту понять риски в договоре и защитить его интересы."
+        }
+      },
+      "name": "AI Legal Analysis",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [3900, 440],
+      "id": "ai-analysis",
+      "credentials": {
+        "openAiApi": {
+          "id": "Es27wp9w8fZSwAE8",
+          "name": "DOSTYQ QOSTANAY"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Парсим JSON ответ от AI\nlet analysisResult;\ntry {\n  const aiResponse = $json.message || $json.text || $json.content;\n  // Извлекаем JSON из markdown если нужно\n  const jsonMatch = aiResponse.match(/```json\\n([\\s\\S]*?)\\n```/) || aiResponse.match(/\\{[\\s\\S]*\\}/);\n  analysisResult = JSON.parse(jsonMatch ? jsonMatch[1] || jsonMatch[0] : aiResponse);\n} catch (e) {\n  // Если парсинг не удался, создаем базовую структуру\n  analysisResult = {\n    document_type: 'unknown',\n    overall_risk_score: 3,\n    risk_points: [],\n    summary: $json.message || 'Ошибка при анализе документа'\n  };\n}\n\nconst chatId = $('Set Analysis Context').item.json.chatId;\nconst riskScore = analysisResult.overall_risk_score || 3;\n\n// Формируем красивое сообщение для пользователя\nlet userMessage = `📋 *АНАЛИЗ ДОГОВОРА ЗАВЕРШЕН*\\n\\n`;\n\n// Эмодзи в зависимости от уровня риска\nconst riskEmoji = {\n  1: '✅',\n  2: '✅', \n  3: '⚠️',\n  4: '🚨',\n  5: '🔴'\n};\n\nuserMessage += `*Общая оценка риска:* ${riskEmoji[riskScore] || '⚠️'} ${riskScore}/5\\n\\n`;\n\n// Рискованные пункты\nif (analysisResult.risk_points && analysisResult.risk_points.length > 0) {\n  userMessage += `*🚩 ОБНАРУЖЕННЫЕ РИСКИ:*\\n\\n`;\n  \n  analysisResult.risk_points.forEach((risk, index) => {\n    const riskEmoji = risk.risk_level >= 4 ? '🔴' : risk.risk_level >= 3 ? '⚠️' : '⚡';\n    userMessage += `${index + 1}. ${riskEmoji} *${risk.issue}*\\n`;\n    \n    if (risk.clause_number) {\n      userMessage += `   📍 Пункт: ${risk.clause_number}\\n`;\n    }\n    \n    if (risk.legal_reference) {\n      userMessage += `   ⚖️ Основание: ${risk.legal_reference}\\n`;\n    }\n    \n    if (risk.recommendation) {\n      userMessage += `   💡 Рекомендация: ${risk.recommendation}\\n`;\n    }\n    \n    userMessage += `\\n`;\n  });\n}\n\n// Положительные моменты\nif (analysisResult.positive_points && analysisResult.positive_points.length > 0) {\n  userMessage += `*✅ ПОЛОЖИТЕЛЬНЫЕ МОМЕНТЫ:*\\n`;\n  analysisResult.positive_points.forEach(point => {\n    userMessage += `• ${point}\\n`;\n  });\n  userMessage += `\\n`;\n}\n\n// Резюме\nif (analysisResult.summary) {\n  userMessage += `*📊 РЕЗЮМЕ:*\\n${analysisResult.summary}\\n\\n`;\n}\n\n// Действия\nif (analysisResult.action_items && analysisResult.action_items.length > 0) {\n  userMessage += `*📝 РЕКОМЕНДУЕМЫЕ ДЕЙСТВИЯ:*\\n`;\n  analysisResult.action_items.forEach((action, index) => {\n    userMessage += `${index + 1}. ${action}\\n`;\n  });\n  userMessage += `\\n`;\n}\n\n// Обязательный дисклеймер\nuserMessage += `\\n⚖️ _Данный анализ носит информационный характер и не является юридической консультацией. Для принятия важных решений рекомендуем обратиться к квалифицированному юристу._\\n\\n`;\nuserMessage += `Хотите более детальный анализ? /premium`;\n\nreturn [{\n  json: {\n    chatId: chatId,\n    message: userMessage,\n    analysisResult: analysisResult,\n    riskScore: riskScore\n  }\n}];"
+      },
+      "name": "Format Analysis Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [4300, 540],
+      "id": "format-response"
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "analyzed_documents",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "chat_id": "={{ $json.chatId }}",
+            "message_id": "={{ $('Prepare Document Text').item.json.messageIds[0] }}",
+            "document_type": "={{ $json.analysisResult.document_type }}",
+            "extracted_text": "={{ $('Set Analysis Context').item.json.documentText.substring(0, 5000) }}",
+            "analysis_result": "={{ $json.analysisResult }}",
+            "risk_score": "={{ $json.riskScore }}",
+            "risk_points": "={{ $json.analysisResult.risk_points }}"
+          }
+        },
+        "options": {}
+      },
+      "name": "Save Analysis to DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [4500, 540],
+      "id": "save-analysis",
+      "credentials": {
+        "postgres": {
+          "id": "YPcvcXZdkdmjfpQp",
+          "name": "DOSTYQ"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT increment_analysis_usage('{{ $json.chatId }}');",
+        "options": {}
+      },
+      "name": "Increment Usage Counter",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [4700, 540],
+      "id": "increment-usage",
+      "credentials": {
+        "postgres": {
+          "id": "YPcvcXZdkdmjfpQp",
+          "name": "DOSTYQ"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Подготавливаем первые 2000 символов документа для векторизации\nconst docText = $('Set Analysis Context').item.json.documentText;\nconst queryText = docText.substring(0, 2000);\n\nreturn [{\n  json: {\n    text: queryText\n  }\n}];"
+      },
+      "name": "Prepare Query for Vectorization",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2900, 340],
+      "id": "prepare-query"
+    }
+  ],
+  "connections": {
+    "Prepare Document Text": {
+      "main": [[
+        { "node": "Check User Limits", "type": "main", "index": 0 }
+      ]]
+    },
+    "Check User Limits": {
+      "main": [[
+        { "node": "Has Limit?", "type": "main", "index": 0 }
+      ]]
+    },
+    "Has Limit?": {
+      "main": [
+        [
+          { "node": "Set Analysis Context", "type": "main", "index": 0 }
+        ],
+        [
+          { "node": "Limit Exceeded Message", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Set Analysis Context": {
+      "main": [[
+        { "node": "Detect Document Type", "type": "main", "index": 0 },
+        { "node": "Prepare Query for Vectorization", "type": "main", "index": 0 }
+      ]]
+    },
+    "Prepare Query for Vectorization": {
+      "main": [[
+        { "node": "Vectorize Query", "type": "main", "index": 0 }
+      ]]
+    },
+    "Vectorize Query": {
+      "main": [[
+        { "node": "Search Legal Context", "type": "main", "index": 0 }
+      ]]
+    },
+    "Search Legal Context": {
+      "main": [[
+        { "node": "Format Legal Context", "type": "main", "index": 0 }
+      ]]
+    },
+    "Detect Document Type": {
+      "main": [[
+        { "node": "Get Analysis Template", "type": "main", "index": 0 }
+      ]]
+    },
+    "Get Analysis Template": {
+      "main": [[
+        { "node": "Merge Analysis Data", "type": "main", "index": 0 }
+      ]]
+    },
+    "Format Legal Context": {
+      "main": [[
+        { "node": "Merge Analysis Data", "type": "main", "index": 1 }
+      ]]
+    },
+    "Set Analysis Context": {
+      "main": [[
+        { "node": "Merge Analysis Data", "type": "main", "index": 2 }
+      ]]
+    },
+    "Merge Analysis Data": {
+      "main": [[
+        { "node": "AI Legal Analysis", "type": "main", "index": 0 }
+      ]]
+    },
+    "AI Legal Analysis": {
+      "main": [[
+        { "node": "Format Analysis Response", "type": "main", "index": 0 }
+      ]]
+    },
+    "Format Analysis Response": {
+      "main": [[
+        { "node": "Save Analysis to DB", "type": "main", "index": 0 }
+      ]]
+    },
+    "Save Analysis to DB": {
+      "main": [[
+        { "node": "Increment Usage Counter", "type": "main", "index": 0 }
+      ]]
+    }
+  }
+}

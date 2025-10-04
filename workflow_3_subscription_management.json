@@ -1,0 +1,224 @@
+{
+  "name": "AI-Lawyer: Subscription & Commands",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "legal-bot-webhook",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "name": "Webhook Commands",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [100, 300],
+      "id": "webhook-commands",
+      "webhookId": "legal-bot-commands"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.messageData.textMessageData.textMessage }}",
+                    "rightValue": "/start",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "start"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.messageData.textMessageData.textMessage }}",
+                    "rightValue": "/pay",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "pay"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.messageData.textMessageData.textMessage }}",
+                    "rightValue": "/balance",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "balance"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.messageData.textMessageData.textMessage }}",
+                    "rightValue": "/help",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "help"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.messageData.textMessageData.textMessage }}",
+                    "rightValue": "/premium",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "premium"
+            }
+          ]
+        }
+      },
+      "name": "Command Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [300, 300],
+      "id": "command-router"
+    },
+    {
+      "parameters": {
+        "jsCode": "const chatId = $json.body.senderData.chatId;\n\nconst welcomeMessage = `🤖 *Добро пожаловать в AI-Юриста!*\\n\\nЯ помогу вам анализировать юридические документы и выявлять риски.\\n\\n📋 *Что я умею:*\\n✅ Анализ договоров аренды\\n✅ Анализ договоров услуг\\n✅ Проверка NDA\\n✅ Оценка рисков по шкале 1-5\\n✅ Ссылки на законы РК\\n\\n💎 *Тарифы:*\\n🆓 FREE: 1 анализ/месяц (до 3 стр)\\n💰 5 анализов - 2990 ₸\\n💰 10 анализов - 4990 ₸\\n💰 20 анализов - 7990 ₸\\n\\n📤 *Как использовать:*\\n1. Отправьте PDF или DOCX файл\\n2. Дождитесь анализа (1-2 мин)\\n3. Получите детальный отчет\\n\\n❗ *Важно:* Это не юридическая консультация!\\n\\n📚 Команды:\\n/help - помощь\\n/balance - остаток анализов\\n/pay - купить пакет`;\n\nreturn [{\n  json: {\n    chatId: chatId,\n    message: welcomeMessage\n  }\n}];"
+      },
+      "name": "/start Handler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 100],
+      "id": "start-handler"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT * FROM check_user_limit('{{ $json.body.senderData.chatId }}');",
+        "options": {}
+      },
+      "name": "Get User Balance",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [500, 300],
+      "id": "get-balance",
+      "credentials": {
+        "postgres": {
+          "id": "YPcvcXZdkdmjfpQp",
+          "name": "DOSTYQ"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const chatId = $('Webhook Commands').item.json.body.senderData.chatId;\nconst userData = $json;\n\nconst remaining = userData.remaining_analyses || 0;\nconst tier = userData.tier || 'free';\nconst maxPages = userData.max_pages || 3;\n\nconst tierEmoji = {\n  'free': '🆓',\n  'basic': '💎',\n  'premium': '👑'\n};\n\nconst balanceMessage = `${tierEmoji[tier]} *Ваш баланс*\\n\\n` +\n  `📊 Тариф: ${tier.toUpperCase()}\\n` +\n  `📄 Осталось анализов: *${remaining}*\\n` +\n  `📑 Макс. страниц: ${maxPages}\\n\\n` +\n  (remaining === 0 ? \n    `❌ Анализы закончились\\n\\n💰 Купить еще: /pay` :\n    `✅ Можете анализировать документы!\\n\\n📤 Отправьте PDF или DOCX файл для анализа`);\n\nreturn [{\n  json: {\n    chatId: chatId,\n    message: balanceMessage\n  }\n}];"
+      },
+      "name": "/balance Handler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 300],
+      "id": "balance-handler"
+    },
+    {
+      "parameters": {
+        "jsCode": "const chatId = $json.body.senderData.chatId;\n\nconst paymentMessage = `💳 *Тарифные пакеты*\\n\\n` +\n  `📦 *ПАКЕТ 5 АНАЛИЗОВ - 2990 ₸*\\n` +\n  `   • До 10 страниц\\n` +\n  `   • Базовый анализ рисков\\n` +\n  `   • Срок: 1 месяц\\n\\n` +\n  \n  `📦 *ПАКЕТ 10 АНАЛИЗОВ - 4990 ₸*\\n` +\n  `   • До 10 страниц\\n` +\n  `   • Базовый анализ\\n` +\n  `   • Выгода: 1000₸\\n` +\n  `   • Срок: 2 месяца\\n\\n` +\n  \n  `📦 *ПАКЕТ 20 АНАЛИЗОВ - 7990 ₸*\\n` +\n  `   • До 15 страниц\\n` +\n  `   • Расширенный анализ\\n` +\n  `   • Сравнение версий\\n` +\n  `   • Протокол разногласий\\n` +\n  `   • Выгода: 3990₸\\n` +\n  `   • Срок: 3 месяца\\n\\n` +\n  \n  `🔗 *Для оплаты:*\\n` +\n  `Нажмите на кнопку ниже или переведите на Kaspi:\\n` +\n  `+7 (XXX) XXX-XX-XX\\n` +\n  `Комментарий: AI-Lawyer ${chatId}\\n\\n` +\n  `После оплаты пришлите скриншот чека.`;\n\nreturn [{\n  json: {\n    chatId: chatId,\n    message: paymentMessage,\n    keyboard: {\n      inline_keyboard: [\n        [\n          { text: '📦 5 анализов - 2990₸', callback_data: 'buy_pack_5' },\n          { text: '📦 10 анализов - 4990₸', callback_data: 'buy_pack_10' }\n        ],\n        [\n          { text: '👑 20 анализов - 7990₸', callback_data: 'buy_pack_20' }\n        ],\n        [\n          { text: '💳 Kaspi оплата', url: 'https://kaspi.kz/pay/XXXXXX' }\n        ]\n      ]\n    }\n  }\n}];"
+      },
+      "name": "/pay Handler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 500],
+      "id": "pay-handler"
+    },
+    {
+      "parameters": {
+        "jsCode": "const chatId = $json.body.senderData.chatId;\n\nconst helpMessage = `📖 *Руководство по использованию*\\n\\n` +\n  `*🎯 Поддерживаемые документы:*\\n` +\n  `✅ Договоры аренды\\n` +\n  `✅ Договоры оказания услуг\\n` +\n  `✅ NDA (соглашения о неразглашении)\\n` +\n  `✅ Трудовые договоры\\n` +\n  `✅ Договоры купли-продажи\\n\\n` +\n  \n  `*📤 Как загрузить:*\\n` +\n  `1. Просто отправьте PDF или DOCX файл\\n` +\n  `2. Бот автоматически определит тип\\n` +\n  `3. Получите анализ через 1-2 минуты\\n\\n` +\n  \n  `*🔍 Что входит в анализ:*\\n` +\n  `• Выявление рискованных пунктов\\n` +\n  `• Оценка по шкале риска 1-5\\n` +\n  `• Ссылки на законы РК\\n` +\n  `• Конкретные рекомендации\\n` +\n  `• Положительные моменты\\n\\n` +\n  \n  `*⚡ Ограничения FREE:*\\n` +\n  `• 1 анализ в месяц\\n` +\n  `• До 3 страниц\\n` +\n  `• Базовый анализ\\n\\n` +\n  \n  `*💎 Premium возможности:*\\n` +\n  `• До 15 страниц\\n` +\n  `• Сравнение версий\\n` +\n  `• Генерация протокола разногласий\\n` +\n  `• Приоритетная обработка\\n\\n` +\n  \n  `*📱 Команды:*\\n` +\n  `/start - начать работу\\n` +\n  `/balance - проверить баланс\\n` +\n  `/pay - купить пакет\\n` +\n  `/help - эта справка\\n` +\n  `/premium - премиум функции\\n\\n` +\n  \n  `❓ Вопросы: @your_support`;\n\nreturn [{\n  json: {\n    chatId: chatId,\n    message: helpMessage\n  }\n}];"
+      },
+      "name": "/help Handler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 700],
+      "id": "help-handler"
+    },
+    {
+      "parameters": {
+        "jsCode": "const chatId = $json.body.senderData.chatId;\n\nconst premiumMessage = `👑 *PREMIUM ФУНКЦИИ*\\n\\n` +\n  `*🔥 Эксклюзивные возможности:*\\n\\n` +\n  \n  `1️⃣ *Сравнение версий договора*\\n` +\n  `   • Загрузите 2 версии\\n` +\n  `   • Автоматическое выявление изменений\\n` +\n  `   • Анализ влияния изменений\\n\\n` +\n  \n  `2️⃣ *Генерация протокола разногласий*\\n` +\n  `   • По результатам анализа\\n` +\n  `   • Готовый шаблон для отправки\\n` +\n  `   • Ссылки на законы\\n\\n` +\n  \n  `3️⃣ *Расширенные лимиты*\\n` +\n  `   • До 15 страниц\\n` +\n  `   • Сложные документы\\n` +\n  `   • Приложения к договорам\\n\\n` +\n  \n  `4️⃣ *Приоритетная обработка*\\n` +\n  `   • Анализ за 30-60 сек\\n` +\n  `   • Без очереди\\n\\n` +\n  \n  `5️⃣ *История анализов*\\n` +\n  `   • Доступ ко всем прошлым анализам\\n` +\n  `   • Экспорт в PDF\\n\\n` +\n  \n  `💰 *Стоимость:*\\n` +\n  `Пакет 20 анализов - 7990₸\\n\\n` +\n  \n  `Купить: /pay`;\n\nreturn [{\n  json: {\n    chatId: chatId,\n    message: premiumMessage\n  }\n}];"
+      },
+      "name": "/premium Handler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 900],
+      "id": "premium-handler"
+    },
+    {
+      "parameters": {},
+      "name": "Merge Commands",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [900, 500],
+      "id": "merge-commands"
+    }
+  ],
+  "connections": {
+    "Webhook Commands": {
+      "main": [[
+        { "node": "Command Router", "type": "main", "index": 0 }
+      ]]
+    },
+    "Command Router": {
+      "main": [
+        [{ "node": "/start Handler", "type": "main", "index": 0 }],
+        [{ "node": "/pay Handler", "type": "main", "index": 0 }],
+        [{ "node": "Get User Balance", "type": "main", "index": 0 }],
+        [{ "node": "/help Handler", "type": "main", "index": 0 }],
+        [{ "node": "/premium Handler", "type": "main", "index": 0 }]
+      ]
+    },
+    "/start Handler": {
+      "main": [[{ "node": "Merge Commands", "type": "main", "index": 0 }]]
+    },
+    "/pay Handler": {
+      "main": [[{ "node": "Merge Commands", "type": "main", "index": 1 }]]
+    },
+    "Get User Balance": {
+      "main": [[{ "node": "/balance Handler", "type": "main", "index": 0 }]]
+    },
+    "/balance Handler": {
+      "main": [[{ "node": "Merge Commands", "type": "main", "index": 2 }]]
+    },
+    "/help Handler": {
+      "main": [[{ "node": "Merge Commands", "type": "main", "index": 3 }]]
+    },
+    "/premium Handler": {
+      "main": [[{ "node": "Merge Commands", "type": "main", "index": 4 }]]
+    }
+  }
+}

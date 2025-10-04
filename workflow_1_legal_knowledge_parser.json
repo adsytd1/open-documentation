@@ -1,0 +1,232 @@
+{
+  "name": "AI-Lawyer: Legal Knowledge Parser",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "weeksInterval": 1
+            }
+          ]
+        }
+      },
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [100, 300],
+      "id": "schedule-trigger-1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Список источников для парсинга\nconst legalSources = [\n  {\n    category: 'civil_code',\n    url: 'https://online.zakon.kz/Document/?doc_id=31577399',\n    description: 'Гражданский кодекс РК',\n    crawlOptions: {\n      limit: 100,\n      includePaths: ['/Document/.*'],\n      maxDiscoveryDepth: 2\n    }\n  },\n  {\n    category: 'labor_code', \n    url: 'https://online.zakon.kz/Document/?doc_id=38910832',\n    description: 'Трудовой кодекс РК',\n    crawlOptions: {\n      limit: 50,\n      includePaths: ['/Document/.*']\n    }\n  },\n  {\n    category: 'contract_templates',\n    url: 'https://tengrinews.kz/zakon/',\n    description: 'Шаблоны договоров и судебная практика',\n    crawlOptions: {\n      limit: 200,\n      includePaths: ['.*dogovor.*', '.*contract.*', '.*sud.*']\n    }\n  },\n  {\n    category: 'judicial_practice',\n    url: 'https://sud.gov.kz/',\n    description: 'Судебная практика',\n    crawlOptions: {\n      limit: 150,\n      sitemap: 'include'\n    }\n  }\n];\n\nreturn legalSources.map(source => ({ json: source }));"
+      },
+      "name": "Legal Sources Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 300],
+      "id": "legal-sources-1"
+    },
+    {
+      "parameters": {
+        "url": "https://api.firecrawl.dev/v2/crawl",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $credentials.firecrawlApiKey }}"
+            },
+            {
+              "name": "Content-Type", 
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "url",
+              "value": "={{ $json.url }}"
+            },
+            {
+              "name": "limit",
+              "value": "={{ $json.crawlOptions.limit }}"
+            },
+            {
+              "name": "includePaths",
+              "value": "={{ $json.crawlOptions.includePaths }}"
+            },
+            {
+              "name": "scrapeOptions",
+              "value": "={{ { formats: ['markdown'], onlyMainContent: true, parsers: ['pdf'] } }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "name": "Firecrawl: Start Crawl",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [500, 300],
+      "id": "firecrawl-crawl-1"
+    },
+    {
+      "parameters": {
+        "amount": 30,
+        "unit": "seconds"
+      },
+      "name": "Wait for Crawl",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [700, 300],
+      "id": "wait-crawl-1",
+      "webhookId": "legal-crawl-wait"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.firecrawl.dev/v2/crawl/{{ $json.id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $credentials.firecrawlApiKey }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Firecrawl: Check Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300],
+      "id": "check-status-1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.status }}",
+              "operation": "equals",
+              "value2": "completed"
+            }
+          ]
+        }
+      },
+      "name": "Is Completed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1100, 300],
+      "id": "is-completed-1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Извлекаем все документы из результата crawl\nconst crawlData = $json.data || [];\nconst category = $('Legal Sources Config').item.json.category;\nconst sourceUrl = $('Legal Sources Config').item.json.url;\n\n// Разбиваем на отдельные документы для векторизации\nconst chunks = [];\n\ncrawlData.forEach((page, index) => {\n  const markdown = page.markdown || '';\n  const metadata = page.metadata || {};\n  \n  // Разбиваем длинные документы на чанки по ~1000 символов\n  const chunkSize = 1000;\n  const overlap = 200;\n  \n  if (markdown.length > chunkSize) {\n    for (let i = 0; i < markdown.length; i += chunkSize - overlap) {\n      const chunk = markdown.substring(i, i + chunkSize);\n      chunks.push({\n        content: chunk,\n        category: category,\n        sourceUrl: metadata.sourceURL || sourceUrl,\n        title: metadata.title || `Document ${index + 1}`,\n        chunkIndex: Math.floor(i / (chunkSize - overlap))\n      });\n    }\n  } else {\n    chunks.push({\n      content: markdown,\n      category: category,\n      sourceUrl: metadata.sourceURL || sourceUrl,\n      title: metadata.title || `Document ${index + 1}`,\n      chunkIndex: 0\n    });\n  }\n});\n\nreturn chunks.map(chunk => ({ json: chunk }));"
+      },
+      "name": "Split into Chunks",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1300, 200],
+      "id": "split-chunks-1"
+    },
+    {
+      "parameters": {
+        "model": "text-embedding-3-small",
+        "options": {}
+      },
+      "name": "OpenAI Embeddings",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1,
+      "position": [1500, 200],
+      "id": "embeddings-1",
+      "credentials": {
+        "openAiApi": {
+          "id": "Es27wp9w8fZSwAE8",
+          "name": "DOSTYQ QOSTANAY"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "legal_knowledge",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "content": "={{ $json.content }}",
+            "category": "={{ $json.category }}",
+            "source_url": "={{ $json.sourceUrl }}",
+            "title": "={{ $json.title }}",
+            "chunk_index": "={{ $json.chunkIndex }}",
+            "embedding": "={{ $('OpenAI Embeddings').item.json.embedding }}"
+          }
+        },
+        "options": {}
+      },
+      "name": "Supabase: Store Vectors",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [1700, 200],
+      "id": "store-vectors-1",
+      "credentials": {
+        "postgres": {
+          "id": "YPcvcXZdkdmjfpQp",
+          "name": "DOSTYQ"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [[{ "node": "Legal Sources Config", "type": "main", "index": 0 }]]
+    },
+    "Legal Sources Config": {
+      "main": [[{ "node": "Firecrawl: Start Crawl", "type": "main", "index": 0 }]]
+    },
+    "Firecrawl: Start Crawl": {
+      "main": [[{ "node": "Wait for Crawl", "type": "main", "index": 0 }]]
+    },
+    "Wait for Crawl": {
+      "main": [[{ "node": "Firecrawl: Check Status", "type": "main", "index": 0 }]]
+    },
+    "Firecrawl: Check Status": {
+      "main": [[{ "node": "Is Completed?", "type": "main", "index": 0 }]]
+    },
+    "Is Completed?": {
+      "main": [
+        [{ "node": "Split into Chunks", "type": "main", "index": 0 }],
+        [{ "node": "Wait for Crawl", "type": "main", "index": 0 }]
+      ]
+    },
+    "Split into Chunks": {
+      "main": [[{ "node": "OpenAI Embeddings", "type": "main", "index": 0 }]]
+    },
+    "OpenAI Embeddings": {
+      "main": [[{ "node": "Supabase: Store Vectors", "type": "main", "index": 0 }]]
+    }
+  }
+}
