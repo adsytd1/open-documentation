@@ -1,0 +1,759 @@
+{
+  "meta": {
+    "templateCreatedBy": "AI-Lawyer Integration",
+    "description": "Расширенная версия вашего основного workflow с интеграцией AI-Юриста"
+  },
+  "nodes": [
+    {
+      "parameters": {},
+      "name": "обработать сообщение",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [-1040, 96],
+      "id": "webhook-trigger",
+      "webhookId": "main-webhook"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "707058fb-3b72-4b02-a22f-d0a97e07e92c",
+              "name": "chatId",
+              "value": "={{ $json.body.senderData.chatId }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-848, 96],
+      "id": "set-chatId",
+      "name": "set chatId"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('обработать сообщение').item.json.body.messageData.typeMessage }}",
+                    "rightValue": "textMessage",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "текст"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('обработать сообщение').item.json.body.messageData.typeMessage }}",
+                    "rightValue": "extendedTextMessage",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "extended"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('обработать сообщение').item.json.body.messageData.typeMessage }}",
+                    "rightValue": "audioMessage",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "audio"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('обработать сообщение').item.json.body.messageData.typeMessage }}",
+                    "rightValue": "imageMessage",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "фото"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('обработать сообщение').item.json.body.messageData.typeMessage }}",
+                    "rightValue": "documentMessage",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "document"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [-640, 32],
+      "id": "type-of-message",
+      "name": "Type of message"
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "short_memory",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "chat_id": "={{ $('set chatId').item.json.chatId }}",
+            "message": "={{ $('обработать сообщение').item.json.body.messageData.textMessageData.textMessage }}",
+            "message_id": "={{ $('обработать сообщение').item.json.body.idMessage }}"
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [0, 0],
+      "id": "send-messages",
+      "name": "send messages",
+      "credentials": {
+        "postgres": {
+          "id": "YPcvcXZdkdmjfpQp",
+          "name": "DOSTYQ"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "file_buffer",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "chat_id": "={{ $('обработать сообщение').item.json.body.senderData.chatId }}",
+            "message_id": "={{ $('обработать сообщение').item.json.body.idMessage }}",
+            "file_url": "={{ $('обработать сообщение').item.json.body.messageData.fileMessageData.downloadUrl }}",
+            "file_name": "={{ $('обработать сообщение').item.json.body.messageData.fileMessageData.fileName }}",
+            "file_type": "={{ $('обработать сообщение').item.json.body.messageData.typeMessage }}",
+            "mime_type": "={{ $('обработать сообщение').item.json.body.messageData.fileMessageData.mimeType }}"
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-400, 528],
+      "id": "insert-file-buffer",
+      "name": "Insert rows in a table",
+      "credentials": {
+        "postgres": {
+          "id": "YPcvcXZdkdmjfpQp",
+          "name": "DOSTYQ"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [288, 48],
+      "id": "wait-1",
+      "name": "Wait",
+      "webhookId": "main-wait-1"
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "short_memory",
+          "mode": "list"
+        },
+        "returnAll": true,
+        "where": {
+          "values": [
+            {
+              "column": "chat_id",
+              "value": "={{ $('set chatId').first().json.chatId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [544, 48],
+      "id": "get-messages",
+      "name": "Get messages",
+      "credentials": {
+        "postgres": {
+          "id": "YPcvcXZdkdmjfpQp",
+          "name": "DOSTYQ"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [1440, 704],
+      "id": "loop-over-items",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1440, 272],
+      "id": "download-audio",
+      "name": "download audio"
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [1728, 288],
+      "id": "transcribe-audio",
+      "name": "Transcribe a recording",
+      "credentials": {
+        "openAiApi": {
+          "id": "Es27wp9w8fZSwAE8",
+          "name": "DOSTYQ QOSTANAY"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://script.google.com/macros/s/AKfycbzAzNoMvGglAS_x1NahOYP4FAZLlw1vlqcD6e9aJwh8nbvstiRUmnf8gU_QRVqk6gDd/exec",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "url",
+              "value": "={{ $json.url }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1760, 720],
+      "id": "google-script-ocr",
+      "name": "Отправить в Google Script"
+    },
+    {
+      "parameters": {
+        "amount": 1.5
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [1952, 720],
+      "id": "wait-2",
+      "name": "Wait2",
+      "webhookId": "wait-2-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ══════════════════════════════════════════════════\n// НОВЫЙ КОД: Определение юридического документа\n// ══════════════════════════════════════════════════\n\nconst fileName = ($('получаем данные о файлах').item.json.name || '').toLowerCase();\nconst fileType = $('получаем данные о файлах').item.json.type;\n\n// Получаем результат OCR\nconst ocrResult = $('Отправить в Google Script').item.json || '';\nconst scannedText = typeof ocrResult === 'string' ? ocrResult : (ocrResult.data || ocrResult.text || '');\n\n// Ключевые слова юридических документов (русский + английский + казахский)\nconst legalKeywords = [\n  // Русский\n  'договор', 'соглашение', 'контракт', 'нда',\n  'аренда', 'найм', 'услуг', 'подряд',\n  'трудов', 'купли', 'продаж', 'поставк',\n  'займ', 'кредит', 'залог', 'поручительств',\n  // Английский\n  'contract', 'agreement', 'nda', 'lease',\n  'rental', 'service', 'employment', 'purchase',\n  'sale', 'loan', 'pledge',\n  // Казахский\n  'келісімшарт', 'шарт', 'жалға', 'қызмет',\n  // Юридические термины\n  'сторона', 'обязуется', 'вправе',\n  'ответственность', 'арендатор', 'арендодатель',\n  'заказчик', 'исполнитель', 'работник', 'работодатель'\n];\n\n// Проверка по имени файла\nconst isLegalByName = legalKeywords.some(kw => fileName.includes(kw));\n\n// Проверка по содержимому (первые 500 символов)\nconst textSample = scannedText.toLowerCase().substring(0, 500);\nconst keywordMatches = legalKeywords.filter(kw => textSample.includes(kw)).length;\nconst isLegalByContent = keywordMatches >= 3; // Минимум 3 совпадения\n\n// Проверка формата файла\nconst isPdfOrDocx = fileType === 'pdf' || \n                    fileType === 'document' || \n                    fileName.match(/\\.(pdf|docx?|doc)$/);\n\n// Проверка размера текста (минимум 200 символов для анализа)\nconst hasEnoughText = scannedText.length >= 200;\n\n// Финальное решение\nconst isLegalDocument = (isLegalByName || isLegalByContent) && \n                        isPdfOrDocx && \n                        hasEnoughText;\n\nconsole.log('Legal document detection:', {\n  fileName,\n  isLegalByName,\n  isLegalByContent,\n  keywordMatches,\n  isPdfOrDocx,\n  textLength: scannedText.length,\n  FINAL: isLegalDocument\n});\n\nreturn [{\n  json: {\n    isLegalDocument: isLegalDocument,\n    shouldAnalyze: isLegalDocument,\n    fileName: fileName,\n    fileType: fileType,\n    scannedText: scannedText,\n    textLength: scannedText.length,\n    detectionReason: isLegalByName ? 'filename' : isLegalByContent ? 'content' : 'none',\n    keywordMatches: keywordMatches\n  }\n}];"
+      },
+      "name": "🔍 Detect Legal Document",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2144, 720],
+      "id": "detect-legal"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.shouldAnalyze }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "⚖️ Is Legal Document?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2344, 720],
+      "id": "is-legal-check"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ══════════════════════════════════════════════════\n// ПОДГОТОВКА ДАННЫХ ДЛЯ ЮРИДИЧЕСКОГО АНАЛИЗА\n// ══════════════════════════════════════════════════\n\nconst chatId = $('получаем данные о файлах').item.json.chatId;\nconst messageIds = $('получаем данные о файлах').item.json.allMessageIds;\nconst documentText = $('🔍 Detect Legal Document').item.json.scannedText;\nconst fileName = $('🔍 Detect Legal Document').item.json.fileName;\n\n// Валидация текста\nif (!documentText || documentText.trim().length < 200) {\n  return [{\n    json: {\n      error: true,\n      chatId: chatId,\n      message: '⚠️ *Не удалось извлечь текст*\\n\\nФайл слишком мал или плохо распознался.\\n\\n💡 Попробуйте:\\n• Загрузить файл лучшего качества\\n• Проверить, что файл не зашифрован\\n• Использовать PDF вместо скана'\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    chatId: chatId,\n    messageIds: messageIds,\n    documentText: documentText,\n    fileName: fileName,\n    textLength: documentText.length,\n    estimatedPages: Math.ceil(documentText.length / 3000) // примерно 3000 символов на страницу\n  }\n}];"
+      },
+      "name": "📄 Prepare Document",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2544, 620],
+      "id": "prepare-document"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT * FROM check_user_limit('{{ $json.chatId }}');",
+        "options": {}
+      },
+      "name": "💳 Check Limits",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [2744, 620],
+      "id": "check-limits-node",
+      "credentials": {
+        "postgres": {
+          "id": "YPcvcXZdkdmjfpQp",
+          "name": "DOSTYQ"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.can_analyze }}",
+              "value2": true
+            }
+          ],
+          "number": [
+            {
+              "value1": "={{ $('📄 Prepare Document').item.json.estimatedPages }}",
+              "operation": "smallerEqual",
+              "value2": "={{ $json.max_pages }}"
+            }
+          ]
+        },
+        "combineOperation": "all"
+      },
+      "name": "✅ Has Limit & Valid Size?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2944, 620],
+      "id": "has-limit-check"
+    },
+    {
+      "parameters": {
+        "jsCode": "const remaining = $('💳 Check Limits').item.json.remaining_analyses || 0;\nconst tier = $('💳 Check Limits').item.json.tier || 'free';\nconst maxPages = $('💳 Check Limits').item.json.max_pages || 3;\nconst docPages = $('📄 Prepare Document').item.json.estimatedPages;\nconst hasLimit = $('💳 Check Limits').item.json.can_analyze;\nconst chatId = $('📄 Prepare Document').item.json.chatId;\n\nlet message = '';\n\n// Случай 1: Нет лимита\nif (!hasLimit) {\n  message = `❌ *Лимит исчерпан*\\n\\n`;\n  \n  if (tier === 'free') {\n    message += `Вы использовали свой *бесплатный анализ* за этот месяц.\\n\\n`;\n    message += `💎 *Доступные пакеты:*\\n`;\n    message += `📦 5 анализов - 2990 ₸\\n`;\n    message += `📦 10 анализов - 4990 ₸ _(выгода 1000₸)_\\n`;\n    message += `👑 20 анализов - 7990 ₸ _(выгода 3990₸)_\\n\\n`;\n  } else {\n    message += `Анализы в вашем пакете закончились.\\n\\n`;\n    message += `Для продолжения работы приобретите дополнительный пакет.\\n\\n`;\n  }\n  \n  message += `💳 Купить: /pay\\n`;\n  message += `📊 Баланс: /balance`;\n}\n// Случай 2: Документ слишком большой\nelse if (docPages > maxPages) {\n  message = `📏 *Документ слишком большой*\\n\\n`;\n  message += `Ваш документ: *~${docPages} страниц*\\n`;\n  message += `Лимит тарифа *${tier}*: ${maxPages} страниц\\n\\n`;\n  \n  if (tier === 'free') {\n    message += `💡 *Решения:*\\n`;\n    message += `1. Купить пакет (до 10-15 стр)\\n`;\n    message += `2. Отправить первые ${maxPages} страницы\\n\\n`;\n    message += `Купить пакет: /pay`;\n  } else {\n    message += `Для анализа больших документов (до 15 стр) нужен 👑 *Premium*\\n\\n`;\n    message += `Подробнее: /premium`;\n  }\n}\n\nreturn [{\n  json: {\n    chatId: chatId,\n    message: message,\n    stopProcessing: true,\n    sourceType: 'limit_exceeded'\n  }\n}];"
+      },
+      "name": "🚫 Limit/Size Exceeded",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3144, 820],
+      "id": "limit-exceeded-msg"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ══════════════════════════════════════════════════\n// ПОДГОТОВКА КОНТЕКСТА ДЛЯ ВЕКТОРНОГО ПОИСКА\n// ══════════════════════════════════════════════════\n\nconst docText = $('📄 Prepare Document').item.json.documentText;\n\n// Берем первые 2000 символов для создания поискового запроса\n// (ключевые термины обычно в начале)\nconst queryText = docText.substring(0, 2000);\n\n// Извлекаем ключевые термины для улучшения поиска\nconst keywords = [];\n\n// Типы договоров\nif (queryText.match(/аренд/i)) keywords.push('аренда');\nif (queryText.match(/услуг/i)) keywords.push('услуги');\nif (queryText.match(/нда|неразглашен/i)) keywords.push('конфиденциальность');\nif (queryText.match(/труд|работ/i)) keywords.push('труд');\n\n// Ключевые аспекты\nif (queryText.match(/штраф|пен|неустой/i)) keywords.push('штрафы');\nif (queryText.match(/расторж|отказ/i)) keywords.push('расторжение');\nif (queryText.match(/ответственн/i)) keywords.push('ответственность');\n\nconst enrichedQuery = keywords.length > 0 \n  ? `${keywords.join(' ')} ${queryText}`\n  : queryText;\n\nreturn [{\n  json: {\n    queryText: enrichedQuery,\n    extractedKeywords: keywords\n  }\n}];"
+      },
+      "name": "🔎 Prepare Search Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3144, 420],
+      "id": "prepare-query"
+    },
+    {
+      "parameters": {
+        "model": "text-embedding-3-small",
+        "options": {}
+      },
+      "name": "🧮 Create Embedding",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1,
+      "position": [3344, 420],
+      "id": "create-embedding",
+      "credentials": {
+        "openAiApi": {
+          "id": "Es27wp9w8fZSwAE8",
+          "name": "DOSTYQ QOSTANAY"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT \n  content, \n  category, \n  source_url, \n  title,\n  1 - (embedding <=> '{{ $json.embedding }}'::vector) as similarity\nFROM legal_knowledge\nWHERE 1 - (embedding <=> '{{ $json.embedding }}'::vector) > 0.7\nORDER BY embedding <=> '{{ $json.embedding }}'::vector\nLIMIT 10;",
+        "options": {}
+      },
+      "name": "📚 Search Legal DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [3544, 420],
+      "id": "search-legal-db",
+      "credentials": {
+        "postgres": {
+          "id": "YPcvcXZdkdmjfpQp",
+          "name": "DOSTYQ"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Форматируем найденный юридический контекст\nconst legalDocs = $input.all();\n\nif (legalDocs.length === 0) {\n  return [{\n    json: {\n      legalContext: 'Релевантный контекст из законов РК не найден. Анализ будет основан на общих принципах права.',\n      contextsFound: 0\n    }\n  }];\n}\n\n// Группируем по категориям для лучшей структуры\nconst grouped = {};\nlegalDocs.forEach(doc => {\n  const category = doc.json.category || 'other';\n  if (!grouped[category]) {\n    grouped[category] = [];\n  }\n  grouped[category].push(doc.json);\n});\n\n// Формируем контекст\nlet contextText = '═══ РЕЛЕВАНТНЫЙ ЮРИДИЧЕСКИЙ КОНТЕКСТ ═══\\n\\n';\n\nfor (const [category, docs] of Object.entries(grouped)) {\n  const categoryNames = {\n    'civil_code': '📕 ГРАЖДАНСКИЙ КОДЕКС РК',\n    'labor_code': '📗 ТРУДОВОЙ КОДЕКС РК',\n    'judicial_practice': '⚖️ СУДЕБНАЯ ПРАКТИКА',\n    'contract_templates': '📋 ТИПОВЫЕ ФОРМЫ ДОГОВОРОВ'\n  };\n  \n  contextText += `\\n${categoryNames[category] || category.toUpperCase()}:\\n`;\n  contextText += `${'─'.repeat(50)}\\n\\n`;\n  \n  docs.forEach((doc, idx) => {\n    contextText += `${idx + 1}. ${doc.title || 'Без названия'}\\n`;\n    contextText += `   Релевантность: ${(doc.similarity * 100).toFixed(1)}%\\n`;\n    contextText += `   ${doc.content.substring(0, 500)}...\\n\\n`;\n  });\n}\n\ncontextText += `\\n${'═'.repeat(50)}\\n`;\ncontextText += `Всего найдено релевантных источников: ${legalDocs.length}\\n`;\n\nreturn [{\n  json: {\n    legalContext: contextText,\n    contextsFound: legalDocs.length,\n    categories: Object.keys(grouped)\n  }\n}];"
+      },
+      "name": "📑 Format Legal Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3744, 420],
+      "id": "format-context"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Определи тип юридического документа. Верни ТОЛЬКО одно слово:\nrental_agreement / service_agreement / nda / employment_contract / purchase_agreement / other\n\nПервые 1000 символов:\n{{ $('📄 Prepare Document').item.json.documentText.substring(0, 1000) }}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.1,
+          "maxTokens": 20
+        }
+      },
+      "name": "🏷️ Detect Type",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [3144, 220],
+      "id": "detect-doc-type",
+      "credentials": {
+        "openAiApi": {
+          "id": "Es27wp9w8fZSwAE8",
+          "name": "DOSTYQ QOSTANAY"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "analysis_templates",
+          "mode": "list"
+        },
+        "where": {
+          "values": [
+            {
+              "column": "document_type",
+              "value": "={{ $json.message.trim() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "📋 Get Template",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [3344, 220],
+      "id": "get-analysis-template",
+      "credentials": {
+        "postgres": {
+          "id": "YPcvcXZdkdmjfpQp",
+          "name": "DOSTYQ"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "numberInputs": 3
+      },
+      "name": "🔀 Merge All Data",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [3944, 420],
+      "id": "merge-analysis-data"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "={{ $('📋 Get Template').item.json.system_prompt }}\n\n**ЮРИДИЧЕСКИЙ КОНТЕКСТ ДЛЯ ИСПОЛЬЗОВАНИЯ:**\n{{ $('📑 Format Legal Context').item.json.legalContext }}\n\n**ТЕКСТ ДОГОВОРА ДЛЯ АНАЛИЗА:**\n{{ $('📄 Prepare Document').item.json.documentText }}\n\n**ТРЕБУЕМЫЙ ФОРМАТ ОТВЕТА (строго JSON):**\n{\n  \"document_type\": \"{{ $('🏷️ Detect Type').item.json.message }}\",\n  \"overall_risk_score\": 1-5,\n  \"risk_breakdown\": {\n    \"financial\": 1-5,\n    \"termination\": 1-5,\n    \"liability\": 1-5,\n    \"procedural\": 1-5,\n    \"legal\": 1-5\n  },\n  \"risk_points\": [\n    {\n      \"clause_number\": \"X.X\",\n      \"clause_text\": \"Дословная цитата\",\n      \"issue\": \"Суть проблемы\",\n      \"risk_level\": 1-5,\n      \"risk_category\": \"financial|termination|liability|procedural|legal\",\n      \"legal_reference\": \"Ст. XXX ГК РК\",\n      \"potential_consequences\": \"Что может случиться\",\n      \"recommendation\": \"Конкретное действие\",\n      \"suggested_wording\": \"Альтернативная формулировка\"\n    }\n  ],\n  \"missing_clauses\": [\n    {\n      \"clause_name\": \"Название\",\n      \"importance\": \"critical|high|medium\",\n      \"why_needed\": \"Объяснение\",\n      \"suggested_text\": \"Рекомендуемый текст\"\n    }\n  ],\n  \"positive_points\": [\"Хорошие пункты\"],\n  \"executive_summary\": \"Краткое резюме\",\n  \"action_items\": [\n    {\n      \"priority\": \"urgent|high|medium\",\n      \"action\": \"Действие\",\n      \"deadline\": \"Когда\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.3,
+          "maxTokens": 4096,
+          "systemMessage": "Ты ведущий юрист-эксперт РК с 15-летним опытом. Твоя задача - защитить интересы клиента через глубокий анализ договора."
+        }
+      },
+      "name": "🤖 AI Legal Analysis",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [4144, 420],
+      "id": "ai-legal-analysis",
+      "credentials": {
+        "openAiApi": {
+          "id": "Es27wp9w8fZSwAE8",
+          "name": "DOSTYQ QOSTANAY"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ══════════════════════════════════════════════════\n// ФОРМАТИРОВАНИЕ ОТВЕТА ПОЛЬЗОВАТЕЛЮ\n// ══════════════════════════════════════════════════\n\nlet analysisResult;\ntry {\n  const aiResponse = $json.message || $json.text || $json.content || '';\n  \n  // Пытаемся извлечь JSON\n  const jsonMatch = aiResponse.match(/```json\\s*([\\s\\S]*?)\\s*```/) || \n                   aiResponse.match(/\\{[\\s\\S]*\\}/);\n  \n  if (jsonMatch) {\n    const jsonText = jsonMatch[1] || jsonMatch[0];\n    analysisResult = JSON.parse(jsonText);\n  } else {\n    throw new Error('No JSON found');\n  }\n} catch (e) {\n  console.error('JSON parse error:', e);\n  analysisResult = {\n    document_type: 'unknown',\n    overall_risk_score: 3,\n    risk_points: [],\n    executive_summary: $json.message || 'Ошибка анализа'\n  };\n}\n\nconst chatId = $('📄 Prepare Document').item.json.chatId;\nconst fileName = $('📄 Prepare Document').item.json.fileName;\nconst riskScore = analysisResult.overall_risk_score || 3;\n\n// ══════════════════════════════════════════════════\n// ФОРМИРУЕМ СООБЩЕНИЕ\n// ══════════════════════════════════════════════════\n\nlet msg = `⚖️ *ЮРИДИЧЕСКИЙ АНАЛИЗ ЗАВЕРШЕН*\\n\\n`;\nmsg += `📄 Файл: _${fileName}_\\n`;\nmsg += `📊 Тип: ${analysisResult.document_type?.replace('_', ' ') || 'не определен'}\\n\\n`;\n\n// Общая оценка с эмодзи\nconst riskEmojis = {\n  1: '✅ Минимальный',\n  2: '✅ Низкий',\n  3: '⚠️ Средний',\n  4: '🚨 Высокий',\n  5: '🔴 КРИТИЧЕСКИЙ'\n};\n\nmsg += `*ОБЩИЙ УРОВЕНЬ РИСКА:* ${riskEmojis[riskScore] || '⚠️'} (${riskScore}/5)\\n\\n`;\n\n// Детализация по категориям (если есть)\nif (analysisResult.risk_breakdown) {\n  msg += `*Детализация:*\\n`;\n  const rb = analysisResult.risk_breakdown;\n  msg += `├ Финансовые: ${rb.financial || '-'}/5\\n`;\n  msg += `├ Расторжение: ${rb.termination || '-'}/5\\n`;\n  msg += `├ Ответственность: ${rb.liability || '-'}/5\\n`;\n  msg += `├ Процедурные: ${rb.procedural || '-'}/5\\n`;\n  msg += `└ Правовые дефекты: ${rb.legal || '-'}/5\\n\\n`;\n}\n\n// Executive Summary\nif (analysisResult.executive_summary) {\n  msg += `*📌 РЕЗЮМЕ:*\\n${analysisResult.executive_summary}\\n\\n`;\n}\n\n// Критические риски (4-5 баллов)\nconst criticalRisks = (analysisResult.risk_points || []).filter(r => r.risk_level >= 4);\nif (criticalRisks.length > 0) {\n  msg += `*🚨 КРИТИЧЕСКИЕ РИСКИ:*\\n\\n`;\n  criticalRisks.forEach((risk, idx) => {\n    msg += `${idx + 1}. *${risk.issue}*\\n`;\n    msg += `   📍 Пункт: ${risk.clause_number || 'не указан'}\\n`;\n    if (risk.legal_reference) {\n      msg += `   ⚖️ Закон: ${risk.legal_reference}\\n`;\n    }\n    msg += `   💡 ${risk.recommendation}\\n\\n`;\n  });\n}\n\n// Средние риски (3 балла)\nconst mediumRisks = (analysisResult.risk_points || []).filter(r => r.risk_level === 3);\nif (mediumRisks.length > 0) {\n  msg += `*⚠️ ТРЕБУЮТ ВНИМАНИЯ (${mediumRisks.length}):*\\n`;\n  mediumRisks.slice(0, 3).forEach((risk, idx) => {\n    msg += `• ${risk.issue}\\n`;\n  });\n  if (mediumRisks.length > 3) {\n    msg += `  _...и еще ${mediumRisks.length - 3}_\\n`;\n  }\n  msg += `\\n`;\n}\n\n// Положительные моменты\nif (analysisResult.positive_points && analysisResult.positive_points.length > 0) {\n  msg += `*✅ ПОЛОЖИТЕЛЬНЫЕ МОМЕНТЫ:*\\n`;\n  analysisResult.positive_points.slice(0, 3).forEach(point => {\n    msg += `• ${point}\\n`;\n  });\n  msg += `\\n`;\n}\n\n// Отсутствующие пункты\nif (analysisResult.missing_clauses && analysisResult.missing_clauses.length > 0) {\n  const critical = analysisResult.missing_clauses.filter(c => c.importance === 'critical');\n  if (critical.length > 0) {\n    msg += `*📋 ОТСУТСТВУЮТ ВАЖНЫЕ ПУНКТЫ:*\\n`;\n    critical.forEach(clause => {\n      msg += `• ${clause.clause_name}\\n`;\n      msg += `  ${clause.why_needed}\\n`;\n    });\n    msg += `\\n`;\n  }\n}\n\n// План действий\nif (analysisResult.action_items && analysisResult.action_items.length > 0) {\n  msg += `*🎯 ПЛАН ДЕЙСТВИЙ:*\\n\\n`;\n  \n  const urgent = analysisResult.action_items.filter(a => a.priority === 'urgent');\n  const high = analysisResult.action_items.filter(a => a.priority === 'high');\n  \n  if (urgent.length > 0) {\n    msg += `⚡ СРОЧНО:\\n`;\n    urgent.forEach(action => {\n      msg += `  ${action.action}\\n`;\n    });\n    msg += `\\n`;\n  }\n  \n  if (high.length > 0) {\n    msg += `📌 ВАЖНО:\\n`;\n    high.forEach(action => {\n      msg += `  ${action.action}\\n`;\n    });\n    msg += `\\n`;\n  }\n}\n\n// Вердикт\nlet verdict = '';\nif (riskScore <= 2) {\n  verdict = '✅ *ВЕРДИКТ:* Можно подписывать';\n} else if (riskScore === 3) {\n  verdict = '⚠️ *ВЕРДИКТ:* Рекомендуется внести правки';\n} else if (riskScore === 4) {\n  verdict = '🚨 *ВЕРДИКТ:* Требуются обязательные правки';\n} else {\n  verdict = '🔴 *ВЕРДИКТ:* НЕ ПОДПИСЫВАТЬ в текущей редакции';\n}\n\nmsg += verdict + `\\n\\n`;\n\n// Премиум функции\nconst tier = $('💳 Check Limits').item.json.tier;\nif (tier !== 'premium') {\n  msg += `\\n━━━━━━━━━━━━━━━━━\\n`;\n  msg += `💎 *PREMIUM ФУНКЦИИ:*\\n`;\n  msg += `• Протокол разногласий\\n`;\n  msg += `• Сравнение версий\\n`;\n  msg += `• Расширенный анализ\\n`;\n  msg += `Подробнее: /premium\\n\\n`;\n}\n\n// Обязательный disclaimer\nmsg += `\\n⚖️ _Данный анализ носит информационный характер и не является юридической консультацией. Для принятия важных решений обратитесь к квалифицированному юристу._\\n\\n`;\nmsg += `❓ Вопросы: /help | 💳 Баланс: /balance`;\n\nreturn [{\n  json: {\n    chatId: chatId,\n    message: msg,\n    analysisResult: analysisResult,\n    riskScore: riskScore,\n    sourceType: 'legal_analysis',\n    processed_message_ids: $('📄 Prepare Document').item.json.messageIds\n  }\n}];"
+      },
+      "name": "💬 Format User Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [4344, 420],
+      "id": "format-user-response"
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "analyzed_documents",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "chat_id": "={{ $json.chatId }}",
+            "message_id": "={{ $json.processed_message_ids[0] }}",
+            "document_type": "={{ $json.analysisResult.document_type }}",
+            "file_name": "={{ $('📄 Prepare Document').item.json.fileName }}",
+            "extracted_text": "={{ $('📄 Prepare Document').item.json.documentText.substring(0, 5000) }}",
+            "analysis_result": "={{ $json.analysisResult }}",
+            "risk_score": "={{ $json.riskScore }}",
+            "risk_points": "={{ $json.analysisResult.risk_points }}"
+          }
+        },
+        "options": {}
+      },
+      "name": "💾 Save to DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [4544, 420],
+      "id": "save-to-db",
+      "credentials": {
+        "postgres": {
+          "id": "YPcvcXZdkdmjfpQp",
+          "name": "DOSTYQ"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT increment_analysis_usage('{{ $json.chatId }}');",
+        "options": {}
+      },
+      "name": "➕ Increment Counter",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [4744, 420],
+      "id": "increment-counter",
+      "credentials": {
+        "postgres": {
+          "id": "YPcvcXZdkdmjfpQp",
+          "name": "DOSTYQ"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Wait2": {
+      "main": [[
+        { "node": "🔍 Detect Legal Document", "type": "main", "index": 0 }
+      ]]
+    },
+    "🔍 Detect Legal Document": {
+      "main": [[
+        { "node": "⚖️ Is Legal Document?", "type": "main", "index": 0 }
+      ]]
+    },
+    "⚖️ Is Legal Document?": {
+      "main": [
+        [
+          { "node": "📄 Prepare Document", "type": "main", "index": 0 }
+        ],
+        [
+          { "node": "Loop Over Items", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "📄 Prepare Document": {
+      "main": [[
+        { "node": "💳 Check Limits", "type": "main", "index": 0 },
+        { "node": "🏷️ Detect Type", "type": "main", "index": 0 },
+        { "node": "🔎 Prepare Search Query", "type": "main", "index": 0 }
+      ]]
+    },
+    "💳 Check Limits": {
+      "main": [[
+        { "node": "✅ Has Limit & Valid Size?", "type": "main", "index": 0 }
+      ]]
+    },
+    "✅ Has Limit & Valid Size?": {
+      "main": [
+        [
+          { "node": "🔀 Merge All Data", "type": "main", "index": 0 }
+        ],
+        [
+          { "node": "🚫 Limit/Size Exceeded", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "🔎 Prepare Search Query": {
+      "main": [[
+        { "node": "🧮 Create Embedding", "type": "main", "index": 0 }
+      ]]
+    },
+    "🧮 Create Embedding": {
+      "main": [[
+        { "node": "📚 Search Legal DB", "type": "main", "index": 0 }
+      ]]
+    },
+    "📚 Search Legal DB": {
+      "main": [[
+        { "node": "📑 Format Legal Context", "type": "main", "index": 0 }
+      ]]
+    },
+    "📑 Format Legal Context": {
+      "main": [[
+        { "node": "🔀 Merge All Data", "type": "main", "index": 1 }
+      ]]
+    },
+    "🏷️ Detect Type": {
+      "main": [[
+        { "node": "📋 Get Template", "type": "main", "index": 0 }
+      ]]
+    },
+    "📋 Get Template": {
+      "main": [[
+        { "node": "🔀 Merge All Data", "type": "main", "index": 2 }
+      ]]
+    },
+    "🔀 Merge All Data": {
+      "main": [[
+        { "node": "🤖 AI Legal Analysis", "type": "main", "index": 0 }
+      ]]
+    },
+    "🤖 AI Legal Analysis": {
+      "main": [[
+        { "node": "💬 Format User Response", "type": "main", "index": 0 }
+      ]]
+    },
+    "💬 Format User Response": {
+      "main": [[
+        { "node": "💾 Save to DB", "type": "main", "index": 0 }
+      ]]
+    },
+    "💾 Save to DB": {
+      "main": [[
+        { "node": "➕ Increment Counter", "type": "main", "index": 0 }
+      ]]
+    },
+    "➕ Increment Counter": {
+      "main": [[
+        { "node": "Merge", "type": "main", "index": 0 }
+      ]]
+    },
+    "🚫 Limit/Size Exceeded": {
+      "main": [[
+        { "node": "Merge", "type": "main", "index": 0 }
+      ]]
+    }
+  }
+}

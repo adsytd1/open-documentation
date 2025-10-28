@@ -1,0 +1,102 @@
+{
+  "nodes_to_add_after_google_script": [
+    {
+      "parameters": {
+        "jsCode": "// Проверяем, является ли файл юридическим документом\nconst fileName = ($('получаем данные о файлах').item.json.name || '').toLowerCase();\nconst fileType = $('получаем данные о файлах').item.json.type;\n\n// Ключевые слова для определения юридических документов\nconst legalKeywords = [\n  'договор', 'contract', 'соглашение', 'agreement',\n  'нда', 'nda', 'аренда', 'rental', 'lease',\n  'услуг', 'service', 'трудов', 'employment',\n  'купли', 'purchase', 'продаж', 'sale'\n];\n\nconst isLegalDoc = legalKeywords.some(keyword => fileName.includes(keyword));\nconst isPdfOrDocx = fileType === 'pdf' || fileType === 'document';\n\nreturn [{\n  json: {\n    isLegalDocument: isLegalDoc && isPdfOrDocx,\n    fileName: fileName,\n    fileType: fileType,\n    shouldAnalyze: isLegalDoc && isPdfOrDocx\n  }\n}];"
+      },
+      "name": "Detect Legal Document",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2144, 720],
+      "id": "detect-legal-doc"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.shouldAnalyze }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "Is Legal Document?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2344, 720],
+      "id": "is-legal-doc"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "WORKFLOW_ID_DOCUMENT_ANALYSIS",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "documentText": "={{ $('Отправить в Google Script').item.json }}",
+            "chatId": "={{ $('получаем данные о файлах').item.json.chatId }}",
+            "messageIds": "={{ $('получаем данные о файлах').item.json.allMessageIds }}"
+          }
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "name": "Execute Legal Analysis",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [2544, 620],
+      "id": "execute-legal-analysis"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "response-message",
+              "name": "message",
+              "value": "={{ $json.message }}",
+              "type": "string"
+            },
+            {
+              "id": "chat-id",
+              "name": "chatId",
+              "value": "={{ $json.chatId }}",
+              "type": "string"
+            },
+            {
+              "id": "source-type",
+              "name": "sourceType",
+              "value": "legal_analysis",
+              "type": "string"
+            },
+            {
+              "id": "processed-ids",
+              "name": "processed_message_ids",
+              "value": "={{ $('получаем данные о файлах').item.json.allMessageIds }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Format Legal Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [2744, 620],
+      "id": "format-legal-response"
+    }
+  ],
+  "integration_instructions": {
+    "step_1": "Добавьте узел 'Detect Legal Document' сразу после 'Wait2'",
+    "step_2": "Подключите 'Detect Legal Document' к 'Is Legal Document?'",
+    "step_3": "TRUE ветку 'Is Legal Document?' подключите к 'Execute Legal Analysis'",
+    "step_4": "FALSE ветку подключите обратно к 'Loop Over Items' (продолжить обработку)",
+    "step_5": "Выход 'Format Legal Response' подключите к вашему узлу 'Merge'",
+    "step_6": "В узле 'Ответ' добавьте обработку sourceType === 'legal_analysis'"
+  }
+}

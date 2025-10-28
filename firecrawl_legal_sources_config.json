@@ -1,0 +1,594 @@
+{
+  "legal_sources_kazakhstan": {
+    "description": "Оптимизированная конфигурация для парсинга юридических источников РК",
+    "total_estimated_credits": 1200,
+    "estimated_time": "30-45 minutes",
+    "sources": [
+      {
+        "id": "gk_rk_general",
+        "name": "Гражданский кодекс РК - Общая часть",
+        "category": "civil_code",
+        "priority": "high",
+        "url": "https://online.zakon.kz/Document/?doc_id=31577399",
+        "firecrawl_config": {
+          "endpoint": "/v2/crawl",
+          "params": {
+            "url": "https://online.zakon.kz/Document/?doc_id=31577399",
+            "limit": 150,
+            "includePaths": ["/Document/.*"],
+            "excludePaths": ["/images/.*", "/scripts/.*", "/css/.*"],
+            "maxDiscoveryDepth": 3,
+            "sitemap": "include",
+            "scrapeOptions": {
+              "formats": ["markdown"],
+              "onlyMainContent": true,
+              "parsers": [
+                {
+                  "type": "pdf",
+                  "maxPages": 1000
+                }
+              ],
+              "maxAge": 2592000000,
+              "includeTags": ["div.document", "p", "article", "section", "table"],
+              "excludeTags": ["nav", "footer", "aside", "script", "style"],
+              "blockAds": true,
+              "removeBase64Images": true
+            }
+          }
+        },
+        "post_processing": {
+          "chunk_by": "article",
+          "chunk_size": 1200,
+          "overlap": 200,
+          "extract_article_numbers": true
+        },
+        "estimated_credits": 200
+      },
+      {
+        "id": "gk_rk_contracts",
+        "name": "ГК РК - Раздел об обязательствах и договорах",
+        "category": "civil_code_contracts",
+        "priority": "critical",
+        "url": "https://online.zakon.kz/Document/?doc_id=31577399#pos=3856;-43",
+        "firecrawl_config": {
+          "endpoint": "/v2/scrape",
+          "params": {
+            "url": "https://online.zakon.kz/Document/?doc_id=31577399#pos=3856;-43",
+            "formats": [
+              {
+                "type": "json",
+                "prompt": "Извлеки все статьи из раздела 'Обязательства и договоры' (главы 26-29). Для каждой статьи укажи номер, название и полный текст",
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "chapters": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "chapter_number": {"type": "integer"},
+                          "chapter_title": {"type": "string"},
+                          "articles": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "article_number": {"type": "integer"},
+                                "article_title": {"type": "string"},
+                                "article_text": {"type": "string"}
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            ],
+            "parsers": ["pdf"],
+            "maxAge": 2592000000
+          }
+        },
+        "estimated_credits": 300
+      },
+      {
+        "id": "tk_rk",
+        "name": "Трудовой кодекс РК",
+        "category": "labor_code",
+        "priority": "high",
+        "url": "https://online.zakon.kz/Document/?doc_id=38910832",
+        "firecrawl_config": {
+          "endpoint": "/v2/crawl",
+          "params": {
+            "url": "https://online.zakon.kz/Document/?doc_id=38910832",
+            "limit": 100,
+            "prompt": "Crawl all sections about employment contracts, working time, wages, and termination",
+            "scrapeOptions": {
+              "formats": ["markdown"],
+              "parsers": ["pdf"],
+              "onlyMainContent": true,
+              "maxAge": 2592000000
+            }
+          }
+        },
+        "estimated_credits": 150
+      },
+      {
+        "id": "consumer_protection",
+        "name": "Закон РК о защите прав потребителей",
+        "category": "consumer_law",
+        "priority": "medium",
+        "url": "https://adilet.zan.kz/rus/docs/Z100000274_",
+        "firecrawl_config": {
+          "endpoint": "/v2/scrape",
+          "params": {
+            "url": "https://adilet.zan.kz/rus/docs/Z100000274_",
+            "formats": ["markdown"],
+            "parsers": [{"type": "pdf", "maxPages": 100}],
+            "maxAge": 2592000000
+          }
+        },
+        "estimated_credits": 50
+      },
+      {
+        "id": "judicial_practice_vs",
+        "name": "Судебная практика Верховного Суда РК",
+        "category": "judicial_practice",
+        "priority": "high",
+        "url": "https://sud.gov.kz/rus/content/sudebnaya-praktika",
+        "firecrawl_config": {
+          "endpoint": "/v2/map",
+          "params": {
+            "url": "https://sud.gov.kz/rus/content/sudebnaya-praktika",
+            "search": "договор аренда услуги трудовой",
+            "limit": 200,
+            "sitemap": "include"
+          },
+          "then": {
+            "endpoint": "/v2/batch/scrape",
+            "params": {
+              "urls": "{{map_results}}",
+              "formats": ["markdown"],
+              "maxConcurrency": 10,
+              "ignoreInvalidURLs": true,
+              "scrapeOptions": {
+                "parsers": ["pdf"],
+                "onlyMainContent": true,
+                "maxAge": 604800000
+              }
+            }
+          }
+        },
+        "estimated_credits": 250
+      },
+      {
+        "id": "normative_resolutions",
+        "name": "Нормативные постановления ВС РК",
+        "category": "vs_resolutions",
+        "priority": "high",
+        "url": "https://sud.gov.kz/rus/legislation/normativnye-postanovleniya-verhovnogo-suda",
+        "firecrawl_config": {
+          "endpoint": "/v2/extract",
+          "params": {
+            "urls": [
+              "https://sud.gov.kz/rus/legislation/normativnye-postanovleniya-verhovnogo-suda"
+            ],
+            "prompt": "Извлеки все нормативные постановления Верховного Суда РК, касающиеся договорных споров",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "resolutions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "number": {"type": "string"},
+                      "date": {"type": "string"},
+                      "title": {"type": "string"},
+                      "summary": {"type": "string"},
+                      "full_text": {"type": "string"},
+                      "relevant_articles": {
+                        "type": "array",
+                        "items": {"type": "string"}
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "enableWebSearch": false,
+            "showSources": true
+          }
+        },
+        "estimated_credits": 100
+      },
+      {
+        "id": "contract_templates",
+        "name": "Типовые формы договоров",
+        "category": "templates",
+        "priority": "medium",
+        "url": "https://tengrinews.kz/zakon/kodeks/dogovor/",
+        "firecrawl_config": {
+          "endpoint": "/v2/crawl",
+          "params": {
+            "url": "https://tengrinews.kz/zakon/kodeks/dogovor/",
+            "limit": 100,
+            "includePaths": [
+              ".*dogovor.*",
+              ".*arenda.*",
+              ".*uslug.*",
+              ".*nda.*"
+            ],
+            "scrapeOptions": {
+              "formats": ["markdown"],
+              "onlyMainContent": true,
+              "maxAge": 1209600000
+            }
+          }
+        },
+        "estimated_credits": 100
+      },
+      {
+        "id": "real_estate_law",
+        "name": "Закон о гос. регистрации прав на недвижимость",
+        "category": "real_estate",
+        "priority": "medium",
+        "url": "https://adilet.zan.kz/rus/docs/Z970000094_",
+        "firecrawl_config": {
+          "endpoint": "/v2/scrape",
+          "params": {
+            "url": "https://adilet.zan.kz/rus/docs/Z970000094_",
+            "formats": ["markdown"],
+            "parsers": ["pdf"],
+            "maxAge": 2592000000
+          }
+        },
+        "estimated_credits": 30
+      },
+      {
+        "id": "arbitration_practice",
+        "name": "Практика арбитражных судов",
+        "category": "arbitration",
+        "priority": "low",
+        "url": "https://arbitr.gov.kz/",
+        "firecrawl_config": {
+          "endpoint": "/v2/map",
+          "params": {
+            "url": "https://arbitr.gov.kz/",
+            "search": "решение договор спор",
+            "limit": 50,
+            "sitemap": "skip"
+          }
+        },
+        "estimated_credits": 20
+      }
+    ]
+  },
+  "parsing_strategy": {
+    "approach": "incremental",
+    "description": "Парсим источники в порядке приоритета, сохраняя прогресс",
+    "steps": [
+      {
+        "step": 1,
+        "name": "Critical sources first",
+        "sources": ["gk_rk_contracts", "tk_rk"],
+        "reason": "Наиболее часто используемые в анализе"
+      },
+      {
+        "step": 2,
+        "name": "High priority",
+        "sources": ["gk_rk_general", "judicial_practice_vs", "normative_resolutions"],
+        "reason": "Расширяют контекст анализа"
+      },
+      {
+        "step": 3,
+        "name": "Medium priority",
+        "sources": ["contract_templates", "consumer_protection", "real_estate_law"],
+        "reason": "Специфичные кейсы"
+      },
+      {
+        "step": 4,
+        "name": "Low priority",
+        "sources": ["arbitration_practice"],
+        "reason": "Дополнительный контекст"
+      }
+    ]
+  },
+  "optimization_tips": {
+    "caching": {
+      "laws": "30 days (законы меняются редко)",
+      "practice": "7 days (судебная практика обновляется чаще)",
+      "templates": "14 days (средняя частота обновления)"
+    },
+    "batching": {
+      "batch_size": 50,
+      "concurrent_requests": 10,
+      "delay_between_batches": 2
+    },
+    "error_handling": {
+      "max_retries": 3,
+      "retry_delay": 30,
+      "fallback": "continue with available data"
+    }
+  },
+  "cost_breakdown": {
+    "initial_parse": {
+      "credits": 1200,
+      "usd_cost": 4.8,
+      "kzt_cost": 2280
+    },
+    "weekly_update": {
+      "credits": 150,
+      "usd_cost": 0.6,
+      "kzt_cost": 285
+    },
+    "monthly_total": {
+      "credits": 1800,
+      "usd_cost": 7.2,
+      "kzt_cost": 3420
+    }
+  },
+  "implementation_code": {
+    "n8n_http_request_example": {
+      "node_type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "url": "https://api.firecrawl.dev/v2/crawl",
+        "method": "POST",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $credentials.firecrawlApiKey }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "url",
+              "value": "={{ $json.url }}"
+            },
+            {
+              "name": "limit",
+              "value": "={{ $json.crawlOptions.limit }}"
+            },
+            {
+              "name": "includePaths",
+              "value": "={{ $json.crawlOptions.includePaths }}"
+            },
+            {
+              "name": "scrapeOptions",
+              "value": "={{ $json.crawlOptions.scrapeOptions }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000,
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "responseFormat": "json"
+            }
+          }
+        }
+      }
+    },
+    "status_check_loop": {
+      "description": "Цикл проверки статуса crawl job",
+      "nodes": [
+        "Wait (30 seconds)",
+        "HTTP Request: GET /v2/crawl/{id}",
+        "IF: status === 'completed'",
+        "  TRUE → Process Results",
+        "  FALSE → Back to Wait"
+      ]
+    }
+  },
+  "advanced_features": {
+    "structured_extraction": {
+      "use_case": "Извлечение конкретных статей с метаданными",
+      "example": {
+        "endpoint": "/v2/extract",
+        "params": {
+          "urls": ["https://online.zakon.kz/Document/?doc_id=31577399"],
+          "prompt": "Извлеки статьи 393-400 ГК РК о договорах. Для каждой статьи укажи: номер, название, полный текст, примечания",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "articles": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "article_number": {"type": "integer"},
+                    "article_title": {"type": "string"},
+                    "article_text": {"type": "string"},
+                    "notes": {"type": "string"},
+                    "related_articles": {
+                      "type": "array",
+                      "items": {"type": "integer"}
+                    }
+                  },
+                  "required": ["article_number", "article_text"]
+                }
+              }
+            }
+          },
+          "enableWebSearch": false,
+          "showSources": true
+        }
+      }
+    },
+    "change_tracking": {
+      "use_case": "Отслеживание изменений в законах",
+      "example": {
+        "formats": [
+          "markdown",
+          {
+            "type": "changeTracking",
+            "modes": ["git-diff"],
+            "tag": "gk_rk_v2025"
+          }
+        ]
+      }
+    },
+    "webhooks": {
+      "use_case": "Асинхронная обработка больших crawl jobs",
+      "example": {
+        "webhook": {
+          "url": "https://your-n8n.com/webhook/firecrawl-done",
+          "metadata": {
+            "source_id": "gk_rk_general",
+            "category": "civil_code"
+          },
+          "events": ["completed", "failed"]
+        }
+      }
+    }
+  },
+  "troubleshooting": {
+    "zakon_kz_specific": {
+      "issue": "Сайт блокирует частые запросы",
+      "solution": {
+        "use_proxy": true,
+        "proxy_type": "auto",
+        "add_delay": 2,
+        "scrapeOptions": {
+          "waitFor": 3000,
+          "proxy": "auto"
+        }
+      }
+    },
+    "pdf_parsing_issues": {
+      "issue": "PDF плохо парсится",
+      "solutions": [
+        {
+          "method": "Increase maxPages",
+          "params": {
+            "parsers": [{"type": "pdf", "maxPages": 2000}]
+          }
+        },
+        {
+          "method": "Use OCR fallback",
+          "note": "Если PDF - скан, используйте Google Script OCR"
+        }
+      ]
+    },
+    "incomplete_content": {
+      "issue": "Не весь контент извлекается",
+      "solution": {
+        "onlyMainContent": false,
+        "includeTags": [
+          "div.document",
+          "div.content", 
+          "div.law-text",
+          "article",
+          "section",
+          "p",
+          "table"
+        ]
+      }
+    }
+  },
+  "n8n_workflow_snippets": {
+    "firecrawl_crawl_with_status_check": {
+      "nodes": [
+        {
+          "name": "Start Crawl",
+          "code": {
+            "url": "https://api.firecrawl.dev/v2/crawl",
+            "method": "POST",
+            "body": {
+              "url": "={{ $json.url }}",
+              "limit": "={{ $json.limit }}",
+              "scrapeOptions": "={{ $json.scrapeOptions }}"
+            }
+          },
+          "output": "{ id: 'crawl-id-123', url: 'status-url' }"
+        },
+        {
+          "name": "Wait Loop",
+          "code": "wait 30 seconds → check status → repeat until completed"
+        },
+        {
+          "name": "Check Status",
+          "code": {
+            "url": "=https://api.firecrawl.dev/v2/crawl/{{ $json.id }}",
+            "method": "GET"
+          },
+          "output": "{ status: 'scraping|completed|failed', data: [...] }"
+        },
+        {
+          "name": "Process Results",
+          "code": "if status === 'completed' → extract data → chunk → vectorize → store"
+        }
+      ]
+    },
+    "vector_search_in_postgres": {
+      "node": "Postgres",
+      "operation": "executeQuery",
+      "query": "SELECT \n  id,\n  content,\n  category,\n  title,\n  1 - (embedding <=> $1::vector) as similarity\nFROM legal_knowledge\nWHERE 1 - (embedding <=> $1::vector) > 0.7\nORDER BY embedding <=> $1::vector\nLIMIT 10;",
+      "parameters": [
+        "={{ $json.embedding }}"
+      ]
+    },
+    "batch_embedding_creation": {
+      "description": "Создание эмбеддингов батчами для экономии",
+      "nodes": [
+        "Split In Batches (batch size: 20)",
+        "→ OpenAI Embeddings",
+        "→ Postgres Insert (batch)",
+        "→ Loop back"
+      ]
+    }
+  },
+  "performance_benchmarks": {
+    "crawl_gk_rk": {
+      "pages": 150,
+      "time": "15-20 minutes",
+      "credits": 200,
+      "output_chunks": 180
+    },
+    "vector_search": {
+      "query_time": "50-150ms",
+      "results": 10,
+      "accuracy": "85%+ relevance"
+    },
+    "full_analysis": {
+      "document_size": "5 pages",
+      "total_time": "45-90 seconds",
+      "breakdown": {
+        "ocr": "10-20s",
+        "vector_search": "0.2s",
+        "ai_analysis": "30-60s",
+        "formatting": "1s"
+      }
+    }
+  },
+  "maintenance_schedule": {
+    "daily": [
+      "Сброс месячных лимитов (если 1 число)",
+      "Очистка старых анализов (>90 дней)",
+      "Проверка Firecrawl кредитов"
+    ],
+    "weekly": [
+      "Обновление юридической базы (Firecrawl crawl)",
+      "Генерация недельного отчета",
+      "Backup базы данных"
+    ],
+    "monthly": [
+      "Анализ эффективности промптов",
+      "Оптимизация векторных индексов",
+      "Финансовый отчет"
+    ]
+  }
+}
